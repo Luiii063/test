@@ -1,0 +1,19 @@
+
+{
+    "config": {
+        
+        "github-protocols": ["https"],
+        "http-basic": {
+            "example.com": {
+                "username": "your_username",
+                "password": "your_password"
+            }
+        },
+        "process-timeout": 300, 
+        "timeout": 300 
+        
+    },
+    "require": {
+        "phpmailer/phpmailer": "^6.5"
+    }    
+}

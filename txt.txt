@@ -1,0 +1,622 @@
+<?php
+session_start();
+require_once("db_connect.php");
+require 'vendor/autoload.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+function generateRandomString($length = 10) {
+    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $randomString = '';
+    for ($i = 0; $i < $length; $i++) {
+        $randomString .= $characters[rand(0, strlen($characters) - 1)];
+    }
+    return $randomString;
+}
+
+function sendEmail($recipientEmail, $subject, $message) {
+    $mail = new PHPMailer(true);
+
+    try {
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'amatluigimiguel@gmail.com'; // Your Gmail email address
+        $mail->Password = 'AmatLuigiMiguelMay062002'; // Your Gmail password or an app-specific password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Use SMTPS (SSL/TLS)
+        $mail->Port = 465; // Port for SMTPS
+
+        $mail->setFrom('amatluigimiguel@gmail.com', 'Luigi Amat'); // Your Gmail address and name
+        $mail->addAddress($recipientEmail); // Recipient's email address
+
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body = $message;
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+// Initialize $result variable
+$result = null;
+$id = isset($_GET["id"]) ? $_GET["id"] : null;
+
+if ($id) {
+    $query = "SELECT * FROM userdetails WHERE id = $id";
+    $result = mysqli_query($connect, $query);
+
+    if ($result === false) {
+        // Handle the SQL error, e.g., display an error message or log the error
+        die("Error: " . mysqli_error($connect));
+    }
+}
+
+if (isset($_POST["create_and_send_temp_credentials"])) {
+    // Fetch user details when the form is submitted
+    $id = isset($_GET["id"]) ? $_GET["id"] : null; // Get the user ID
+    $query = "SELECT * FROM userdetails WHERE id = $id";
+    $result = mysqli_query($connect, $query);
+
+    if ($result === false) {
+        // Handle the SQL error, e.g., display an error message or log the error
+        die("Error: " . mysqli_error($connect));
+    }
+
+    $recipient_email = $_POST["recipient_email"];
+
+    if (filter_var($recipient_email, FILTER_VALIDATE_EMAIL)) {
+        if ($row = mysqli_fetch_assoc($result)) {
+            $first_name = $row["firstName"];
+            $last_name = $row["lastName"];
+            
+            // Use the first name as the username and the last name as the password
+            $temp_username = $first_name;
+            $temp_password = $last_name;
+            
+            // Insert temporary credentials into the userlogin table
+            $insert_query = "INSERT INTO userlogin (username, saltedpassword, salt) VALUES (?, ?, ?)";
+            $stmt_insert_credentials = mysqli_prepare($connect, $insert_query);
+            $salt = uniqid(); // Generate a unique salt
+            $salted_temp_password = $temp_password . $salt; // Combine password with salt
+            $hashed_temp_password = password_hash($salted_temp_password, PASSWORD_DEFAULT);
+
+            mysqli_stmt_bind_param($stmt_insert_credentials, "sss", $temp_username, $hashed_temp_password, $salt);
+
+            if (mysqli_stmt_execute($stmt_insert_credentials)) {
+                // Send an email to the student with the temporary credentials
+                $subject = 'Temporary Credentials';
+                $message = "Your temporary username: $temp_username\nYour temporary password: $temp_password";
+
+                if (sendEmail($recipient_email, $subject, $message)) {
+                    echo '<script>alert("Temporary credentials created and email sent successfully.")</script>';
+                } else {
+                    echo '<script>alert("Error sending email.")</script>';
+                }
+            } else {
+                echo '<script>alert("Error creating temporary credentials.")</script>';
+            }
+
+            mysqli_stmt_close($stmt_insert_credentials);
+        } else {
+            echo '<script>alert("User not found.")</script>';
+        }
+    } else {
+        echo '<script>alert("Invalid recipient email address.")</script>';
+    }
+}
+
+if (isset($_POST["change_credentials"])) {
+    $new_username = $_POST["new_username"];
+    $new_password = $_POST["new_password"];
+
+    if ($_SESSION['student_logged_in']) {
+        $user_id = $_SESSION['user_id'];
+
+        $query = "SELECT salt FROM userlogin WHERE id = ?";
+        $stmt_select_salt = mysqli_prepare($connect, $query);
+        mysqli_stmt_bind_param($stmt_select_salt, "i", $user_id);
+        mysqli_stmt_execute($stmt_select_salt);
+        mysqli_stmt_bind_result($stmt_select_salt, $user_salt);
+
+        if (mysqli_stmt_fetch($stmt_select_salt)) {
+
+            $salted_new_password = $new_password . $user_salt;
+            $hashed_new_password = password_hash($salted_new_password, PASSWORD_DEFAULT);
+
+            $update_query = "UPDATE userlogin SET username = ?, saltedpassword = ? WHERE id = ?";
+            $stmt_update_credentials = mysqli_prepare($connect, $update_query);
+
+            mysqli_stmt_bind_param($stmt_update_credentials, "ssi", $new_username, $hashed_new_password, $user_id);
+
+            if (mysqli_stmt_execute($stmt_update_credentials)) {
+                echo '<script>alert("Credentials updated successfully.")</script>';
+            } else {
+                echo '<script>alert("Error updating credentials.")</script>';
+            }
+
+            mysqli_stmt_close($stmt_update_credentials);
+        } else {
+            echo '<script>alert("Error retrieving user salt.")</script>';
+        }
+
+        mysqli_stmt_close($stmt_select_salt);
+    } else {
+        echo '<script>alert("You are not logged in as a student.")</script>';
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Email Interface</title>
+    <style>
+        /* Add CSS styles for the form */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        form {
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        input[type="submit"] {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        .back-button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .back-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Send Email to Student</h2>
+<form action="admin_email_form.php?id=<?php echo $id; ?>" method="post">
+    <?php if ($result && $row = mysqli_fetch_assoc($result)): ?>
+        <label for="recipient_email">Recipient's Email:</label>
+        <input type="email" id="recipient_email" value="<?php echo $row["emailAddress"]; ?>" name="recipient_email" required><br><br>
+        <!-- Display the first name as the username -->
+        <label for="temp_username">Temporary Username:</label>
+        <input type="text" id="temp_username" name="temp_username" value="<?php echo $row["firstName"]; ?>" required><br><br>
+        <!-- Display the last name as the password -->
+        <label for="temp_password">Temporary Password:</label>
+        <input type="password" id="temp_password" name="temp_password" value="<?php echo $row["lastName"]; ?>" required><br><br>
+        <input type="submit" name="create_and_send_temp_credentials" value="Send">
+        <a href="admin_dashboard.php" class="back-button">Back</a>
+
+    <?php endif; ?>
+</form>
+
+</body>
+</html>
+
+
+<?php
+session_start();
+require_once("db_connect.php");
+require 'vendor/autoload.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+function generateRandomString($length = 10) {
+    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $randomString = '';
+    for ($i = 0; $i < $length; $i++) {
+        $randomString .= $characters[rand(0, strlen($characters) - 1)];
+    }
+    return $randomString;
+}
+
+function sendEmail($recipientEmail, $subject, $message) {
+    $mail = new PHPMailer(true);
+
+    try {
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'amatluigimiguel@gmail.com'; // Your Gmail email address
+        $mail->Password = 'AmatLuigiMiguelMay062002'; // Your Gmail password or an app-specific password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Use SMTPS (SSL/TLS)
+        $mail->Port = 465; // Port for SMTPS
+
+        $mail->setFrom('amatluigimiguel@gmail.com', 'Luigi Amat'); // Your Gmail address and name
+        $mail->addAddress($recipientEmail); // Recipient's email address
+
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body = $message;
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+// Initialize $result variable
+$result = null;
+$id = isset($_GET["id"]) ? $_GET["id"] : null;
+
+if ($id) {
+    $query = "SELECT * FROM userdetails WHERE id = $id";
+    $result = mysqli_query($connect, $query);
+
+    if ($result === false) {
+        // Handle the SQL error, e.g., display an error message or log the error
+        die("Error: " . mysqli_error($connect));
+    }
+}
+
+if (isset($_POST["create_and_send_temp_credentials"])) {
+    // Fetch user details when the form is submitted
+    $id = isset($_GET["id"]) ? $_GET["id"] : null; // Get the user ID
+    $query = "SELECT * FROM userdetails WHERE id = $id";
+    $result = mysqli_query($connect, $query);
+
+    if ($result === false) {
+        // Handle the SQL error, e.g., display an error message or log the error
+        die("Error: " . mysqli_error($connect));
+    }
+
+    $recipient_email = $_POST["recipient_email"];
+    $temp_username = generateRandomString(8); // Generate an 8-character random username
+    $temp_password = generateRandomString(12); // Generate a 12-character random password
+
+    if (filter_var($recipient_email, FILTER_VALIDATE_EMAIL)) {
+        // Insert temporary credentials into the userlogin table
+        $insert_query = "INSERT INTO userlogin (username, saltedpassword, salt) VALUES (?, ?, ?)";
+        $stmt_insert_credentials = mysqli_prepare($connect, $insert_query);
+        $salt = uniqid(); // Generate a unique salt
+        $salted_temp_password = $temp_password . $salt; // Combine password with salt
+        $hashed_temp_password = password_hash($salted_temp_password, PASSWORD_DEFAULT);
+
+        mysqli_stmt_bind_param($stmt_insert_credentials, "sss", $temp_username, $hashed_temp_password, $salt);
+
+        if (mysqli_stmt_execute($stmt_insert_credentials)) {
+            // Send an email to the student with the temporary credentials
+            $subject = 'Temporary Credentials';
+            $message = "Your temporary username: $temp_username\nYour temporary password: $temp_password";
+
+            if (sendEmail($recipient_email, $subject, $message)) {
+                echo '<script>alert("Temporary credentials created and email sent successfully.")</script>';
+            } else {
+                echo '<script>alert("Error sending email.")</script>';
+            }
+        } else {
+            echo '<script>alert("Error creating temporary credentials.")</script>';
+        }
+
+        mysqli_stmt_close($stmt_insert_credentials);
+    } else {
+        echo '<script>alert("Invalid recipient email address.")</script>';
+    }
+}
+
+if (isset($_POST["change_credentials"])) {
+    $new_username = $_POST["new_username"];
+    $new_password = $_POST["new_password"];
+
+    if ($_SESSION['student_logged_in']) {
+        $user_id = $_SESSION['user_id'];
+
+        $query = "SELECT salt FROM userlogin WHERE id = ?";
+        $stmt_select_salt = mysqli_prepare($connect, $query);
+        mysqli_stmt_bind_param($stmt_select_salt, "i", $user_id);
+        mysqli_stmt_execute($stmt_select_salt);
+        mysqli_stmt_bind_result($stmt_select_salt, $user_salt);
+
+        if (mysqli_stmt_fetch($stmt_select_salt)) {
+
+            $salted_new_password = $new_password . $user_salt;
+            $hashed_new_password = password_hash($salted_new_password, PASSWORD_DEFAULT);
+
+            $update_query = "UPDATE userlogin SET username = ?, saltedpassword = ? WHERE id = ?";
+            $stmt_update_credentials = mysqli_prepare($connect, $update_query);
+
+            mysqli_stmt_bind_param($stmt_update_credentials, "ssi", $new_username, $hashed_new_password, $user_id);
+
+            if (mysqli_stmt_execute($stmt_update_credentials)) {
+                echo '<script>alert("Credentials updated successfully.")</script>';
+            } else {
+                echo '<script>alert("Error updating credentials.")</script>';
+            }
+
+            mysqli_stmt_close($stmt_update_credentials);
+        } else {
+            echo '<script>alert("Error retrieving user salt.")</script>';
+        }
+
+        mysqli_stmt_close($stmt_select_salt);
+    } else {
+        echo '<script>alert("You are not logged in as a student.")</script>';
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Email Interface</title>
+    <style>
+        /* Add CSS styles for the form */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        form {
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        input[type="submit"] {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        .back-button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .back-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Send Email to Student</h2>
+<form action="admin_email_form.php?id=<?php echo $id; ?>" method="post">
+    <?php if ($result && $row = mysqli_fetch_assoc($result)): ?>
+        <label for="recipient_email">Recipient's Email:</label>
+        <input type="email" id="recipient_email" value="<?php echo $row["emailAddress"]; ?>" name="recipient_email" required><br><br>
+        <label for="temp_username">Temporary Username:</label>
+        <input type="text" id="temp_username" name="temp_username" value="<?php echo generateRandomString(10); ?>" required><br><br>
+        <label for="temp_password">Temporary Password:</label>
+        <input type="password" id="temp_password" name="temp_password" value="<?php echo generateRandomString(15); ?>" required><br><br>
+        <input type="submit" name="create_and_send_temp_credentials" value="Send">
+        <a href="admin_dashboard.php" class="back-button">Back</a>
+
+    <?php endif; ?>
+</form>
+</body>
+</html>
+
+
+<span>Welcome <?php echo ucfirst($userType); ?></span>
+
+
+    <section>
+        <?php
+        if ($userType === "admin") {
+            // Display an edit form for the admin
+            echo '<form method="post">';
+            echo '<textarea name="new_announcement_text">' . htmlspecialchars($announcementText) . '</textarea>';
+            echo '<input type="submit" name="edit_announcement" value="Edit Announcement">';
+            echo '</form>';
+        } else {
+            // Display the announcement text for students
+            echo '<p>' . htmlspecialchars($announcementText) . '</p>';
+        }
+        ?>
+    </section>
+
+
+
+
+
+?????????????????????????????????????????
+
+
+<?php
+session_start();
+require_once("db_connect.php");
+
+if (isset($_SESSION["username"])) {
+    header("location: registration.php");
+    exit();
+}
+
+if (isset($_POST["login"])) {
+    $username = mysqli_real_escape_string($connect, trim($_POST["username"]));
+    $password = trim($_POST["password"]);
+
+  
+    if ($username === "admin" && $password === "admin") {
+        $_SESSION['admin_logged_in'] = true;
+        $_SESSION['username'] = $username;
+        header("Location: homepage.php");
+        exit();
+    } else {
+      
+        $query = "SELECT id, username, saltedpassword, salt FROM userlogin WHERE username = ?";
+        $stmt = mysqli_prepare($connect, $query);
+        mysqli_stmt_bind_param($stmt, "s", $username);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $userId, $dbUsername, $dbSaltedPassword, $dbSalt);
+
+        if (mysqli_stmt_fetch($stmt)) {
+          
+            if ($saltedPassword === $dbSaltedPassword) {
+    
+                $_SESSION['student_logged_in'] = true;
+                $_SESSION['username'] = $username;
+                $_SESSION['password'] = $password;
+                header("Location: homepage.php");
+                exit();
+            } else {
+                echo '<script>alert("Wrong User Details")</script>';
+            }
+        } else {
+            echo '<script>alert("Wrong User Details")</script>';
+        }
+        mysqli_stmt_close($stmt);
+    }
+}
+
+if (isset($_POST["register"])) {
+    if (empty($_POST["username"]) || empty($_POST["password"])) {
+        echo '<script>alert("Fill all the Fields")</script>';
+    } else {
+        $username = mysqli_real_escape_string($connect, $_POST["username"]);
+        $password = mysqli_real_escape_string($connect, $_POST["password"]);
+
+        $salt = uniqid(); 
+        $saltedPassword = $password . $salt; 
+        $hashedPassword = password_hash($saltedPassword, PASSWORD_DEFAULT);
+        
+        $query = "INSERT INTO userlogin (username, saltedpassword, salt) VALUES (?, ?, ?)";
+        $stmt = mysqli_prepare($connect, $query);
+        mysqli_stmt_bind_param($stmt, "sss", $username, $hashedPassword, $salt);
+
+mysqli_stmt_bind_param($stmt_update_credentials, "sssi", $new_username, $hashed_new_password, $salt, $user_id);
+
+
+        if (mysqli_stmt_execute($stmt)) {
+            echo '<script>alert("You have been registered")</script>';
+        }
+        mysqli_stmt_close($stmt);
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" type="text/css" href="style/login.css">
+<title>UNLAD DOLORES</title>
+</head>
+<body>
+<header>
+    <div class="header-content">
+        <div class="header-left">
+            <img src="images/unlad.png" alt="Logo 1" width="80" height="50">
+            <img src="images/dolores.png" alt="Logo 2" width="65" height="40">
+        </div>
+    </div>
+    <div class="header-center">
+        <h1>UNLAD DOLORES</h1>
+    </div>
+    <a class="button-home" href="landing_page.php">Home</a>
+</header>
+    <div class="login-box">
+        <form action="login.php" method="post"> 
+            <div class="user-box">
+                <input type="text" name="username" required>
+                <label>Username:</label>
+            </div>
+            <div class="user-box">
+                <input type="password" name="password" required>
+                <label>Password:</label>
+            </div>
+            <label class="txt" for="rememberMe">Remember Me:</label>
+            <input type="checkbox" name="rememberMe" id="rememberMe"><br>
+            <input class="login" type="submit" name="login" value="Login">
+        </form>
+        <p class="txt">Don't have an account? <a href="registration.php">Register here</a></p>
+    </div>
+    <form>
+</body>
+</html>

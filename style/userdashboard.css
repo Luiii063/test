@@ -1,0 +1,318 @@
+body {
+    background-repeat: no-repeat;
+    background-position: bottom;
+    background-attachment: fixed;
+  background-size: cover;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f2f2f2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    
+}
+.headerww {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+
+
+}
+
+header {
+    color: #fff;
+    padding: 25px 250px; 
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+
+}
+
+.header-left {
+display: flex;
+align-items: center;
+margin-left: 20px;
+}
+
+.header-left img {
+    width: 70px;
+    height: 55px;
+    margin-right: 10px;
+}
+
+
+.header-icons {
+    display: flex;
+    align-items: center;
+}
+
+.header-icons a {
+    font-family: monospace;
+  font-size: 20px;
+  color: #0050a7;
+  text-transform: uppercase;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 2px solid #0050a7;
+  background: #ffffff;
+  box-shadow: 3px 3px #0050a7;
+  cursor: pointer;
+  margin: 0 24px 0 0 ;
+
+
+}
+
+/* Style for the icons on hover */
+.header-icons a:active {
+    box-shadow: none;
+    transform: translate(3px, 3px);
+}
+
+
+nav {
+    margin-bottom: 20px;
+}
+
+nav ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+nav li {
+    display: inline;
+    margin-right: 20px;
+}
+.sidebar {
+    width: 250px;
+    background-color: #0066ff;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: -250px; /* Hide the sidebar by default */
+    transition: left 1s; /* Add smooth transition effect */
+    overflow-x: hidden;
+    padding-top: 20px;
+}
+
+.sidebar a {
+    padding: 10px 15px;
+    text-align: left;
+    text-decoration: none;
+    font-size: 18px;
+    color: white;
+    display: block;
+    transition: 0.3s;
+}
+
+.sidebar a:hover {
+    background-color: #0050a7;
+}
+
+/* Style for the button that shows/hides the sidebar */
+.toggle-sidebar-btn {
+    align-self: center;
+margin-right: 10px;
+font-size: 30px;
+    color: black;
+    padding: 30px 10px;
+    text-align: center;
+    cursor: pointer;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: transparent;
+    
+}
+
+.toggle-sidebar-btn:hover {
+    background-color: #463c3c;
+}
+.content {
+    flex-grow: 1;
+    max-height: calc(100vh - 60px); 
+    padding: 20px;
+    overflow-y: auto; 
+    }
+    
+    .main-container{
+        justify-content: space-between;
+        margin: 0px 0px 20px;
+        max-width: 100%;
+        width: 75%;
+        flex-grow: 1;
+        height: 100vh;
+    }
+table {
+    font-family: Arial, Helvetica, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+    
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    font-size: 20px;
+    font-weight: bold;
+    
+}
+
+th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: left;
+    background-color: #00379e;
+    color: white;
+}
+
+footer {
+    z-index: 1;
+    margin-top: auto;
+    background-color: #0050a7;
+    color: #fff;
+    text-align: center;
+    width: 100%;
+}
+.navbar {
+    background-color: #0050a7;
+    color: #000000;
+    padding: 15px 270px;
+    display: flex;
+    justify-content: flex-start; /* Change to flex-end */
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+/* Style for the buttons in the navbar */
+.navbar button {
+    background-color: transparent;
+    border: none;
+    color: #000000;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.navbar button:hover {
+    color: white;
+}
+
+/* Style for the dropdown content */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #0056b3;
+    min-width: 160px;
+    z-index: 1;
+}
+
+.dropdown-content a {
+    padding: 12px 16px;
+    color: #fff;
+    text-decoration: none;
+    display: block;
+}
+
+.dropdown-content a:hover {
+    background-color: #003a75;
+}
+
+/* Style to show the dropdown when hovering over the Help button */
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+.unlad{
+    color:black;
+    font-size: 28px;
+    margin: 0;
+}
+/* Style for the notification popup */
+.notification-popup {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.popup-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+#ok-button {
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+#ok-button:hover {
+    background-color: #0056b3;
+}
+
+.card:hover .edit-button {
+display: inline-block;
+}
+.edit-form {
+display: none;
+}
+
+.save-button {
+display: none;
+}
+.card.admin:hover {
+display: inline-block;
+}
+
+.card.admin:hover .edit-form {
+display: block;
+}
+.edit-button, .edit-form {
+    display: none; 
+}
+
+.admin .edit-button {
+    display: inline-block; 
+}
+@media (max-width: 768px) {
+    .header,
+    .navbar {
+        padding: 10px;
+    }
+
+    .header {
+        padding: 10px 20px;
+    }
+
+    .navbar button {
+        font-size: 16px;
+    }
+
+    .main-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .announcementcard,
+    .updatescard,
+    .date-timecard {
+        width: 100%; /* Full width for smaller screens */
+    }
+}
